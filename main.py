@@ -22,6 +22,7 @@ def main():
 
     written = 0
     skipped = 0
+    errors = 0
 
     for item in emails:
         try:
@@ -30,19 +31,25 @@ def main():
             log.warning(f"Skipping unparseable email: {e}")
             continue
 
-        if record_exists(database_id, tx["date"], tx["merchant"], tx["amount"], notion_api_key):
-            log.info(f"Duplicate, skipping: {tx['date']} {tx['merchant']} {tx['amount']}")
-            skipped += 1
-            continue
+        try:
+            if record_exists(database_id, tx["date"], tx["merchant"], tx["amount"], notion_api_key):
+                log.info(f"Duplicate, skipping: {tx['date']} {tx['merchant']} {tx['amount']}")
+                skipped += 1
+                continue
 
-        category = categorize(tx["merchant"])
-        create_record(
-            database_id, tx["date"], tx["merchant"], tx["amount"], category, notion_api_key
-        )
-        log.info(f"Recorded: {tx['date']} | {tx['merchant']} | {tx['amount']} | {category}")
-        written += 1
+            category = categorize(tx["merchant"])
+            create_record(
+                database_id, tx["date"], tx["merchant"], tx["amount"], category, notion_api_key
+            )
+            log.info(f"Recorded: {tx['date']} | {tx['merchant']} | {tx['amount']} | {category}")
+            written += 1
+        except Exception as e:
+            log.error(f"Notion API error for {tx['date']} {tx['merchant']}: {e}")
+            errors += 1
 
-    log.info(f"Done. Written: {written}, Skipped duplicates: {skipped}")
+    log.info(f"Done. Written: {written}, Skipped duplicates: {skipped}, Errors: {errors}")
+    if errors:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
