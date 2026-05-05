@@ -1,16 +1,21 @@
 import imaplib
 import email
+import logging
 
 IMAP_HOST = "imap.gmail.com"
 IMAP_PORT = 993
 CATHAY_SENDER = "cathaybk.com.tw"
+
+log = logging.getLogger(__name__)
 
 
 def fetch_unread_transactions(gmail_address: str, app_password: str) -> list[dict]:
     """Connect to Gmail, fetch unseen 國泰世華 emails, return their bodies.
 
     Each email is marked as read immediately after fetching to prevent
-    duplicate processing on the next run.
+    duplicate processing on the next run. If marking fails, a warning is
+    logged and the email will be retried on the next run (downstream
+    duplicate detection prevents double-writes to Notion).
 
     Returns:
         [{"uid": bytes, "body": str}, ...]
@@ -25,11 +30,17 @@ def fetch_unread_transactions(gmail_address: str, app_password: str) -> list[dic
         results = []
         for uid in uid_list:
             _, data = conn.uid("fetch", uid, "(RFC822)")
+            if not data or not isinstance(data[0], tuple):
+                log.warning(f"Unexpected fetch response for uid {uid}, skipping")
+                continue
             raw = data[0][1]
             msg = email.message_from_bytes(raw)
             body = _extract_body(msg)
             results.append({"uid": uid, "body": body})
-            conn.uid("store", uid, "+FLAGS", "\\Seen")
+            try:
+                conn.uid("store", uid, "+FLAGS", "\\Seen")
+            except Exception:
+                log.warning(f"Failed to mark uid {uid} as read — will be retried next run")
 
         return results
 
