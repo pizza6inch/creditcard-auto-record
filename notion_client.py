@@ -35,7 +35,10 @@ def create_database(parent_page_id: str, api_key: str) -> str:
     }
     resp = requests.post(f"{BASE_URL}/databases", json=payload, headers=_headers(api_key))
     resp.raise_for_status()
-    return resp.json()["id"]
+    data = resp.json()
+    if "id" not in data:
+        raise ValueError(f"Unexpected Notion response (missing 'id'): {data}")
+    return data["id"]
 
 
 def record_exists(
@@ -57,7 +60,10 @@ def record_exists(
         headers=_headers(api_key),
     )
     resp.raise_for_status()
-    return len(resp.json()["results"]) > 0
+    data = resp.json()
+    if "results" not in data:
+        raise ValueError(f"Unexpected Notion response (missing 'results'): {data}")
+    return len(data["results"]) > 0
 
 
 def create_record(

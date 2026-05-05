@@ -1,3 +1,5 @@
+import pytest
+
 from notion_client import create_database, record_exists, create_record
 
 API_KEY = "secret_test"
@@ -43,3 +45,21 @@ def test_create_record_posts_correct_payload(requests_mock):
     assert props["金額"]["number"] == 350
     assert props["分類"]["select"]["name"] == "超市/量販"
     assert props["日期"]["date"]["start"] == "2024-01-15"
+
+
+def test_create_database_raises_on_missing_id(requests_mock):
+    requests_mock.post(
+        "https://api.notion.com/v1/databases",
+        json={"object": "error", "message": "unexpected"},
+    )
+    with pytest.raises(ValueError, match="missing 'id'"):
+        create_database(PARENT_ID, API_KEY)
+
+
+def test_record_exists_raises_on_missing_results(requests_mock):
+    requests_mock.post(
+        f"https://api.notion.com/v1/databases/{DB_ID}/query",
+        json={"object": "error"},
+    )
+    with pytest.raises(ValueError, match="missing 'results'"):
+        record_exists(DB_ID, "2024/01/15", "全聯", 350, API_KEY)
