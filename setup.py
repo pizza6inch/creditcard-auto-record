@@ -18,7 +18,11 @@ def main():
         print("Error: set NOTION_API_KEY and NOTION_PARENT_PAGE_ID environment variables")
         sys.exit(1)
 
-    db_id = create_database(parent_page_id, api_key)
+    try:
+        db_id = create_database(parent_page_id, api_key)
+    except Exception as e:
+        print(f"Error creating database: {e}")
+        sys.exit(1)
     print("\nNotion database created successfully!")
     print(f"NOTION_DATABASE_ID={db_id}")
     print("\nAdd this as a GitHub Secret named NOTION_DATABASE_ID")
