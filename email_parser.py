@@ -1,7 +1,7 @@
 import re
 
 DATE_PATTERN = re.compile(r'消費日期[：:]\s*(\d{4}[/\-]\d{2}[/\-]\d{2})')
-MERCHANT_PATTERN = re.compile(r'消費特店[：:]\s*(.+?)[\n\r<]')
+MERCHANT_PATTERN = re.compile(r'消費特店[：:]\s*(.+?)(?=[\n\r<]|$)')
 AMOUNT_PATTERN = re.compile(r'消費金額[：:]\s*(?:新台幣\s*)?(?:NT\$\s*)?([\d,]+)')
 
 

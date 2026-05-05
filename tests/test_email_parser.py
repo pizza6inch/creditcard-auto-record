@@ -56,3 +56,9 @@ def test_raises_on_missing_amount():
     body = "消費日期：2024/01/15\n消費特店：全聯"
     with pytest.raises(ValueError, match="amount"):
         parse_transaction(body)
+
+
+def test_parse_merchant_at_end_no_trailing_newline():
+    body = "消費日期：2024/01/15\n消費金額：新台幣 100 元\n消費特店：某商店"
+    result = parse_transaction(body)
+    assert result["merchant"] == "某商店"
