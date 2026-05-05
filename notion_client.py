@@ -33,7 +33,7 @@ def create_database(parent_page_id: str, api_key: str) -> str:
             "建立時間": {"created_time": {}},
         },
     }
-    resp = requests.post(f"{BASE_URL}/databases", json=payload, headers=_headers(api_key))
+    resp = requests.post(f"{BASE_URL}/databases", json=payload, headers=_headers(api_key), timeout=30)
     resp.raise_for_status()
     data = resp.json()
     if "id" not in data:
@@ -58,6 +58,7 @@ def record_exists(
         f"{BASE_URL}/databases/{database_id}/query",
         json=payload,
         headers=_headers(api_key),
+        timeout=30,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -84,5 +85,5 @@ def create_record(
             "分類": {"select": {"name": category}},
         },
     }
-    resp = requests.post(f"{BASE_URL}/pages", json=payload, headers=_headers(api_key))
+    resp = requests.post(f"{BASE_URL}/pages", json=payload, headers=_headers(api_key), timeout=30)
     resp.raise_for_status()

@@ -62,3 +62,17 @@ def test_parse_merchant_at_end_no_trailing_newline():
     body = "消費日期：2024/01/15\n消費金額：新台幣 100 元\n消費特店：某商店"
     result = parse_transaction(body)
     assert result["merchant"] == "某商店"
+
+
+def test_parse_html_body():
+    html_body = (
+        "<html><body>\n"
+        "<tr><td>消費日期：2024/02/14</td></tr>\n"
+        "<tr><td>消費特店：麥當勞</td></tr>\n"
+        "<tr><td>消費金額：NT$199</td></tr>\n"
+        "</body></html>"
+    )
+    result = parse_transaction(html_body)
+    assert result["date"] == "2024/02/14"
+    assert result["merchant"] == "麥當勞"
+    assert result["amount"] == 199
