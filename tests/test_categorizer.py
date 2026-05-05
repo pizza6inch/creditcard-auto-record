@@ -24,3 +24,7 @@ def test_first_match_wins():
 
 def test_empty_merchant_returns_other():
     assert categorize("") == "其他"
+
+
+def test_whitespace_merchant_returns_other():
+    assert categorize("   ") == "其他"
