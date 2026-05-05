@@ -20,3 +20,7 @@ def test_fallback_to_other():
 def test_first_match_wins():
     # "7-ELEVEN" is in 餐飲 — should not fall through to 其他
     assert categorize("7-ELEVEN 台北信義店") == "餐飲"
+
+
+def test_empty_merchant_returns_other():
+    assert categorize("") == "其他"

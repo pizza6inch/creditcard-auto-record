@@ -17,8 +17,10 @@ def categorize(merchant: str) -> str:
     """Return the category for a merchant name.
 
     Matches case-insensitively against keywords in categories.yml.
-    Returns '其他' if no keyword matches.
+    Returns '其他' if no keyword matches or merchant is empty.
     """
+    if not merchant.strip():
+        return "其他"
     categories = _load_categories()
     merchant_lower = merchant.lower()
     for category, keywords in categories.items():
