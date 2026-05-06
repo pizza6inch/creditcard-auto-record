@@ -1,3 +1,4 @@
+import base64
 import imaplib
 import email
 import logging
@@ -53,25 +54,59 @@ def fetch_unread_transactions(gmail_address: str, app_password: str) -> list[dic
                 log.warning(f"Failed to mark uid {uid} as read — will be retried next run")
 
             try:
-                conn.uid("copy", uid, LABEL)
+                conn.uid("copy", uid, _encode_mbox(LABEL))
             except Exception:
                 log.warning(f"Failed to apply label '{LABEL}' to uid {uid}")
 
         return results
 
 
+def _encode_mbox(name: str) -> str:
+    """Encode a mailbox name in IMAP Modified UTF-7 (RFC 3501).
+
+    ASCII printable characters (except '&') are kept as-is. Non-ASCII runs
+    are encoded as &<base64 of UTF-16-BE>-.
+    """
+    result = []
+    buf = []
+
+    def flush():
+        if buf:
+            utf16 = "".join(buf).encode("utf-16-be")
+            b64 = base64.b64encode(utf16).decode("ascii").rstrip("=")
+            result.append(f"&{b64}-")
+            buf.clear()
+
+    for ch in name:
+        if ch == "&":
+            flush()
+            result.append("&-")
+        elif "\x20" <= ch <= "\x7e":
+            flush()
+            result.append(ch)
+        else:
+            buf.append(ch)
+
+    flush()
+    return "".join(result)
+
+
 def _ensure_label(conn: imaplib.IMAP4_SSL, label: str) -> None:
     """Create the Gmail label if it does not already exist."""
-    status, mailboxes = conn.list()
-    if status != "OK":
-        return
-    existing = b"".join(m for m in mailboxes if m) if mailboxes else b""
-    if label.encode() not in existing:
-        result, _ = conn.create(label)
-        if result == "OK":
-            log.info(f"Created Gmail label: {label}")
-        else:
-            log.warning(f"Could not create Gmail label '{label}'")
+    encoded = _encode_mbox(label)
+    try:
+        status, mailboxes = conn.list()
+        if status != "OK":
+            return
+        existing = b"".join(m for m in mailboxes if m) if mailboxes else b""
+        if encoded.encode("ascii") not in existing:
+            result, _ = conn.create(encoded)
+            if result == "OK":
+                log.info(f"Created Gmail label: {label}")
+            else:
+                log.warning(f"Could not create Gmail label '{label}'")
+    except Exception as e:
+        log.warning(f"Could not ensure Gmail label '{label}': {e}")
 
 
 def _decode_header(header: str) -> str:
