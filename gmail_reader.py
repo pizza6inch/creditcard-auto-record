@@ -2,6 +2,7 @@ import base64
 import imaplib
 import email
 import logging
+from datetime import date
 
 IMAP_HOST = "imap.gmail.com"
 IMAP_PORT = 993
@@ -11,23 +12,26 @@ LABEL = "cathaybk/已處理"
 log = logging.getLogger(__name__)
 
 
-def fetch_unread_transactions(gmail_address: str, app_password: str) -> list[dict]:
-    """Connect to Gmail, fetch unseen 國泰世華 消費彙整通知 emails, return their bodies.
+def fetch_todays_transactions(gmail_address: str, app_password: str) -> list[dict]:
+    """Connect to Gmail, fetch today's 國泰世華 消費彙整通知 emails, return their bodies.
 
-    Each email is marked as read and labelled ``cathaybk/已處理`` immediately
-    after fetching to prevent duplicate processing. If either operation fails a
-    warning is logged; the email will be retried on the next run (downstream
-    duplicate detection prevents double-writes to Notion).
+    Uses a date-based IMAP SINCE search so the script is idempotent: running
+    it multiple times on the same day is safe because Notion's record_exists
+    check prevents duplicate writes.
+
+    Processed emails are labelled ``cathaybk/已處理`` for manual verification.
 
     Returns:
         [{"uid": bytes, "body": str}, ...]
     """
+    imap_date = date.today().strftime("%d-%b-%Y")  # e.g. "06-May-2026"
+
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as conn:
         conn.login(gmail_address, app_password)
         _ensure_label(conn, LABEL)
         conn.select("INBOX")
 
-        _, uids = conn.uid("search", None, f'FROM "@{CATHAY_SENDER}" UNSEEN')
+        _, uids = conn.uid("search", None, f'FROM "@{CATHAY_SENDER}" SINCE {imap_date}')
         uid_list = [u for u in uids[0].split() if u]
 
         results = []
@@ -47,11 +51,6 @@ def fetch_unread_transactions(gmail_address: str, app_password: str) -> list[dic
 
             body = _extract_body(msg)
             results.append({"uid": uid, "body": body})
-
-            try:
-                conn.uid("store", uid, "+FLAGS", "\\Seen")
-            except Exception:
-                log.warning(f"Failed to mark uid {uid} as read — will be retried next run")
 
             try:
                 conn.uid("copy", uid, _encode_mbox(LABEL))

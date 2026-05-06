@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 
-from gmail_reader import fetch_unread_transactions
+from gmail_reader import fetch_todays_transactions
 from email_parser import parse_transactions
 from categorizer import categorize
 from notion_client import record_exists, create_record
@@ -17,8 +17,8 @@ def main():
     notion_api_key = os.environ["NOTION_API_KEY"]
     database_id = os.environ["NOTION_DATABASE_ID"]
 
-    emails = fetch_unread_transactions(gmail_address, app_password)
-    log.info(f"Fetched {len(emails)} unseen email(s)")
+    emails = fetch_todays_transactions(gmail_address, app_password)
+    log.info(f"Fetched {len(emails)} email(s) from today")
 
     written = 0
     skipped = 0
