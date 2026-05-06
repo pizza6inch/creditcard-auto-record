@@ -1,45 +1,41 @@
 import re
 
-DATE_PATTERN = re.compile(r'消費日期[：:]\s*(\d{4}[/\-]\d{2}[/\-]\d{2})')
-MERCHANT_PATTERN = re.compile(r'消費特店[：:]\s*(.+?)(?=[\n\r<]|$)')
-AMOUNT_PATTERN = re.compile(r'消費金額[：:]\s*(?:新台幣\s*)?(?:NT\$\s*)?([\d,]+)')
-
-_HTML_TAG = re.compile(r'<[^>]+>')
-_HTML_SPACE = re.compile(r'&nbsp;|&#160;')
+_TX_BLOCK = re.compile(r'<!--詳細內文 第一筆 -->(.*?)<!--詳細內文 第一筆end-->', re.DOTALL)
+_DATE_IN_TD = re.compile(r'>(\d{4}/\d{2}/\d{2})<')
+_AMOUNT_MERCHANT = re.compile(r'>NT\$([\d,]+)</td>\s*<td[^>]*>\s*([^<]+?)\s*</td>', re.DOTALL)
 
 
-def _strip_html(text: str) -> str:
-    """Remove HTML tags and common entities so regex patterns work on HTML bodies."""
-    text = _HTML_SPACE.sub(' ', text)
-    return _HTML_TAG.sub(' ', text)
+def parse_transactions(body: str) -> list[dict]:
+    """Parse a 國泰世華 消費彙整通知 HTML email body.
 
-
-def parse_transaction(body: str) -> dict:
-    """Parse a 國泰世華 spending notification email body.
-
-    Accepts both plain text and HTML email bodies.
+    Splits the email into per-transaction HTML blocks using the bank's own
+    HTML comment markers, then extracts date, amount, and merchant from each.
 
     Returns:
-        {"date": str, "merchant": str, "amount": int}
+        [{"date": "YYYY/MM/DD", "merchant": str, "amount": int}, ...]
 
     Raises:
-        ValueError: if any required field cannot be extracted.
+        ValueError: if no transaction blocks are found, or a block is missing
+                    a required field.
     """
-    body = _strip_html(body)
-    date_match = DATE_PATTERN.search(body)
-    if not date_match:
-        raise ValueError("Could not extract date from email body")
+    blocks = _TX_BLOCK.findall(body)
+    if not blocks:
+        raise ValueError("No transaction blocks found in email body")
 
-    merchant_match = MERCHANT_PATTERN.search(body)
-    if not merchant_match:
-        raise ValueError("Could not extract merchant from email body")
+    results = []
+    for i, block in enumerate(blocks, start=1):
+        date_m = _DATE_IN_TD.search(block)
+        if not date_m:
+            raise ValueError(f"Could not extract date from transaction block {i}")
 
-    amount_match = AMOUNT_PATTERN.search(body)
-    if not amount_match:
-        raise ValueError("Could not extract amount from email body")
+        amt_m = _AMOUNT_MERCHANT.search(block)
+        if not amt_m:
+            raise ValueError(f"Could not extract amount/merchant from transaction block {i}")
 
-    return {
-        "date": date_match.group(1),
-        "merchant": merchant_match.group(1).strip(),
-        "amount": int(amount_match.group(1).replace(",", "")),
-    }
+        results.append({
+            "date": date_m.group(1),
+            "merchant": amt_m.group(2).strip(),
+            "amount": int(amt_m.group(1).replace(",", "")),
+        })
+
+    return results

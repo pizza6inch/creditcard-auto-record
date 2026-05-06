@@ -3,7 +3,7 @@ import sys
 import logging
 
 from gmail_reader import fetch_unread_transactions
-from email_parser import parse_transaction
+from email_parser import parse_transactions
 from categorizer import categorize
 from notion_client import record_exists, create_record
 
@@ -26,26 +26,27 @@ def main():
 
     for item in emails:
         try:
-            tx = parse_transaction(item["body"])
+            txs = parse_transactions(item["body"])
         except ValueError as e:
             log.warning(f"Skipping unparseable email: {e}")
             continue
 
-        try:
-            if record_exists(database_id, tx["date"], tx["merchant"], tx["amount"], notion_api_key):
-                log.info(f"Duplicate, skipping: {tx['date']} {tx['merchant']} {tx['amount']}")
-                skipped += 1
-                continue
+        for tx in txs:
+            try:
+                if record_exists(database_id, tx["date"], tx["merchant"], tx["amount"], notion_api_key):
+                    log.info(f"Duplicate, skipping: {tx['date']} {tx['merchant']} {tx['amount']}")
+                    skipped += 1
+                    continue
 
-            category = categorize(tx["merchant"])
-            create_record(
-                database_id, tx["date"], tx["merchant"], tx["amount"], category, notion_api_key
-            )
-            log.info(f"Recorded: {tx['date']} | {tx['merchant']} | {tx['amount']} | {category}")
-            written += 1
-        except Exception as e:
-            log.error(f"Notion API error for {tx['date']} {tx['merchant']}: {e}")
-            errors += 1
+                category = categorize(tx["merchant"])
+                create_record(
+                    database_id, tx["date"], tx["merchant"], tx["amount"], category, notion_api_key
+                )
+                log.info(f"Recorded: {tx['date']} | {tx['merchant']} | {tx['amount']} | {category}")
+                written += 1
+            except Exception as e:
+                log.error(f"Notion API error for {tx['date']} {tx['merchant']}: {e}")
+                errors += 1
 
     log.info(f"Done. Written: {written}, Skipped duplicates: {skipped}, Errors: {errors}")
     if errors:

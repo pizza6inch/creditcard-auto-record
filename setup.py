@@ -7,7 +7,10 @@ Prints NOTION_DATABASE_ID to stdout. Copy it into your GitHub Secrets.
 """
 import os
 import sys
+from dotenv import load_dotenv
 from notion_client import create_database
+
+load_dotenv()
 
 
 def main():
