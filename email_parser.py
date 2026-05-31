@@ -1,3 +1,4 @@
+import html
 import re
 
 _TX_BLOCK = re.compile(r'<!--詳細內文 第一筆 -->(.*?)<!--詳細內文 第一筆end-->', re.DOTALL)
@@ -34,7 +35,7 @@ def parse_transactions(body: str) -> list[dict]:
 
         results.append({
             "date": date_m.group(1),
-            "merchant": amt_m.group(2).strip(),
+            "merchant": html.unescape(amt_m.group(2).strip()),
             "amount": int(amt_m.group(1).replace(",", "")),
         })
 

@@ -2,7 +2,7 @@ import base64
 import imaplib
 import email
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 IMAP_HOST = "imap.gmail.com"
 IMAP_PORT = 993
@@ -12,19 +12,20 @@ LABEL = "cathaybk/已處理"
 log = logging.getLogger(__name__)
 
 
-def fetch_todays_transactions(gmail_address: str, app_password: str) -> list[dict]:
-    """Connect to Gmail, fetch today's 國泰世華 消費彙整通知 emails, return their bodies.
+def fetch_todays_transactions(gmail_address: str, app_password: str, days_back: int = 2) -> list[dict]:
+    """Connect to Gmail, fetch recent 國泰世華 消費彙整通知 emails, return their bodies.
 
-    Uses a date-based IMAP SINCE search so the script is idempotent: running
-    it multiple times on the same day is safe because Notion's record_exists
-    check prevents duplicate writes.
+    Searches from ``days_back`` days ago so that emails sent the previous
+    evening are never missed when the job runs at 02:00 Taiwan time.
+    Idempotent: Notion's record_exists check prevents duplicate writes.
 
     Processed emails are labelled ``cathaybk/已處理`` for manual verification.
 
     Returns:
         [{"uid": bytes, "body": str}, ...]
     """
-    imap_date = date.today().strftime("%d-%b-%Y")  # e.g. "06-May-2026"
+    since_date = date.today() - timedelta(days=days_back)
+    imap_date = since_date.strftime("%d-%b-%Y")  # e.g. "04-May-2026"
 
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as conn:
         conn.login(gmail_address, app_password)
